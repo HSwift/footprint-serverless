@@ -1,0 +1,6 @@
+# 浏览器公开 Token，可在 Mapbox 控制台创建并限制允许访问的域名。
+MAPBOX_PUBLIC_TOKEN=""
+MAPBOX_STYLE="mapbox://styles/mapbox/light-v11"
+# 本地 API 的 Token，仅由 Vite 开发服务器读取，不发送到浏览器。
+# 不填写时尝试读取 ../api/.dev.vars 中的 INGEST_TOKEN。
+INGEST_TOKEN=""
