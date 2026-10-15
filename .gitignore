@@ -7,6 +7,8 @@
 **/wrangler.local.jsonc
 **/wrangler.local.json
 **/wrangler.local.toml
+**/wrangler.generated.jsonc
+**/.deploy-secrets.generated.json
 **/.cloudflare/
 **/dist/
 worker/coverage/

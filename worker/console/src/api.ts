@@ -4,8 +4,8 @@ import type { ProjectInput } from "./project";
 async function get<T>(path: string, signal: AbortSignal): Promise<T> {
   const response = await fetch(path, { signal, cache: "no-store", credentials: "same-origin" });
   if (!response.ok) {
-    if (response.status === 401) throw new Error("本地 API 鉴权未配置，请设置开发服务器的 INGEST_TOKEN。");
-    throw new Error(`数据加载失败（${response.status}），请确认本地 API 已启动。`);
+    if (response.status === 401) throw new Error("登录已失效或 API 鉴权未配置，请刷新页面重新登录。");
+    throw new Error(`数据加载失败（${response.status}），请稍后刷新重试。`);
   }
   if (!response.headers.get("content-type")?.includes("application/json")) throw new Error("API 返回了非 JSON 响应。");
   return response.json() as Promise<T>;
@@ -19,7 +19,7 @@ export async function saveProject(input: ProjectInput, id?: number): Promise<Pro
   if (!response.headers.get("content-type")?.includes("application/json")) throw new Error("项目保存失败：API 返回了非 JSON 响应。");
   const result = await response.json() as { project?: Project; error?: { code?: string; field?: string } };
   if (!response.ok) {
-    if (response.status === 401) throw new Error("本地 API 鉴权未配置，请设置开发服务器的 INGEST_TOKEN。");
+    if (response.status === 401) throw new Error("登录已失效或 API 鉴权未配置，请刷新页面重新登录。");
     if (response.status === 404) throw new Error("项目已不存在，请刷新数据后重试。");
     if (response.status === 400) throw new Error(result.error?.field === "name" ? "请检查项目名称。" : "请检查项目的起止时间。");
     throw new Error(`项目保存失败（${response.status}），请稍后重试。`);

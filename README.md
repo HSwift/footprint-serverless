@@ -2,7 +2,7 @@
 
 个人位置上报、足迹查询 API 与地图控制台。API 运行于 Cloudflare Workers 和 D1。
 
-当前版本完成旧项目的 API 迁移，并提供 Console 本地预览。Console 使用 React、Mapbox GL JS 和虚拟表格，地图与位置数据联动。按当前开发范围，暂未接入 Cloudflare Access；后续部署时通过 Access 登录，再由服务端通过 Service Binding 携带 Token 调用 API。API 只校验 Token，不验证或信任 Access JWT。
+项目提供两个独立 Cloudflare Worker：API 使用 Token 鉴权，Console 使用 Cloudflare Access。Console 使用 React、Mapbox GL JS 和虚拟表格，通过 Service Binding 在服务端携带 Token 调用 API。Access JWT 由 Console 校验，API 不信任 Access 请求头。两个 Worker 分别构建和部署。
 
 ## 目录
 
@@ -167,7 +167,7 @@ pnpm --dir worker run backfill:timezone --apply-local
 
 前端顺序读取所有位置分页（每页 5,000 条）和项目分页，再在本地筛选。首次读取需要加载全部位置；刷新期间只会读取本地 API，不写入或删除记录。当前预览上限为 100,000 个点；大规模数据的服务端范围查询与增量加载后续再加入。
 
-本阶段仅供本地预览，开发服务器只监听 `127.0.0.1`。生产 Console Worker、Access 鉴权和 Service Binding 接入留到后续部署阶段；当前构建的静态文件依赖本地配置端点与 API 代理，不作为独立生产控制台发布。
+本地开发服务器只监听 `127.0.0.1`，通过 Vite 代理访问 API。生产部署使用独立 Console Worker 提供相同的配置端点与 Service Binding 代理，不使用 Vite 开发服务器。
 
 本地代理只放行同源的 `POST /api/projects` 和 `PATCH /api/projects/:id` 写请求，API Token 仍由服务端添加。新增与编辑写入当前本地 API 使用的数据库；历史预览脚本使用独立的 `.local/console-preview/d1`。位置写入和删除请求仍由预览代理阻止。
 
@@ -354,9 +354,31 @@ pnpm --dir worker run wrangler secret put INGEST_TOKEN
 
 自定义域名和部署绑定只配置在私有 Wrangler 文件或 Cloudflare 控制台。直接使用 `pnpm exec wrangler` 时需自行传入配置路径；`pnpm run wrangler` 及仓库的开发、构建、迁移和部署脚本会自动选择配置。公开仓库不记录个人部署状态、数据库内容或账号信息。
 
-Console 当前提供本地预览；其生产 Worker、Access 登录和 Service Binding 接入仍需另行实现，当前静态构建不作为独立生产控制台发布。
+### 两个独立的 Cloudflare Builders
 
-Cloudflare Workers Builds 可使用 `/worker` 作为根目录，构建命令为 `pnpm install --frozen-lockfile && pnpm run check && pnpm run build:api`，部署命令为 `pnpm run deploy:api`。部署环境需提供自己的私有配置及 Cloudflare 凭据。
+将同一 GitHub 仓库分别连接到两个 Worker，各自创建一个生产 Builder。生产分支使用 `main`，根目录使用 `worker`，Node.js 为 `24`，pnpm 为 `11.28.5`。Cloudflare 负责安装锁定的依赖。
+
+| 配置 | API Builder | Console Builder |
+| --- | --- | --- |
+| Worker 名称 | `footprint-serverless-api` | `footprint-serverless-console` |
+| Build command | `pnpm run cf:render:api && pnpm run typecheck` | `pnpm run cf:render:console && pnpm run typecheck && pnpm run build:console` |
+| Deploy command | `pnpm run cf:deploy:api` | `pnpm run cf:deploy:console` |
+| 必需 Build Variable | `D1_DATABASE_ID` | 无，Access 及地图配置也可直接在 Worker 运行时设置 |
+| 可选 Build Variables | `D1_DATABASE_NAME`、`API_WORKER_NAME` | `API_WORKER_NAME`、`CONSOLE_WORKER_NAME`、`ACCESS_TEAM_DOMAIN`、`ACCESS_AUD`、`MAPBOX_PUBLIC_TOKEN`、`MAPBOX_STYLE` |
+
+先部署 API，再部署 Console。API Builder 应用 D1 迁移并部署 API；Console Builder 只发布前端静态资源、Console Worker 和 Service Binding，不迁移数据库、不部署 API。自定义 Worker 名称时，两个 Builder 的 `API_WORKER_NAME` 必须一致。
+
+构建脚本从通用模板生成临时 `wrangler.generated.jsonc`，部署后清理，账号资源信息不进入 Git。运行时 Secret 在后续发布中保留。两个 Worker 都需要相同的 `INGEST_TOKEN`，通过各自 Worker 的 **Settings → Variables and Secrets** 设置；首次引导也可在两个 Builder 中临时提供相同的 Secret `RUNTIME_INGEST_TOKEN`，初次发布成功后移除该 Build Secret。
+
+### Console Access 配置
+
+在 Console Worker 的 **Access** 页面选择 **Protect this Worker behind Access → All traffic**，设置自己的允许策略。不要把 API Worker 一起放到这个 Access 应用中，API 继续使用 Bearer Token 接收客户端上报。
+
+将 Access Team Domain（HTTPS origin）及应用 Audience Tag 分别配置为 Console Worker 的 `ACCESS_TEAM_DOMAIN` 和 `ACCESS_AUD`，或放到其 Builder 的同名变量后重新构建。Console 在服务端校验 JWT 的签名、issuer、audience 和有效期；只伪造身份请求头不能访问数据。没有配置 Access 时，除无数据的健康检查外均拒绝访问。
+
+Console Worker 同时配置 `MAPBOX_PUBLIC_TOKEN` 和可选的 `MAPBOX_STYLE`。地图 Token 可以是普通运行时变量，API Token 必须是 Secret；浏览器只会收到公开的 Mapbox 配置。项目新增和编辑要求同源请求；位置写入与删除不通过 Console 代理。
+
+Workers Builds 的 Git 连接、构建变量和 Access 允许名单均保存在自己的 Cloudflare 账号，不提交到仓库。部署流程不需要 GitHub Actions。两个 Worker 发布后都提供 `/health` 健康检查。
 
 ## 检查
 

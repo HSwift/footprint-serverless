@@ -28,7 +28,12 @@
     "deploy:api": "pnpm run db:migrate:remote && node scripts/wrangler.mjs deploy",
     "cf-typegen": "node scripts/wrangler.mjs types --config api/wrangler.jsonc",
     "wrangler": "node scripts/wrangler.mjs",
-    "test:tools": "node --test scripts/wrangler.test.mjs"
+    "test:tools": "node --test scripts/*.test.mjs",
+    "cf:render:api": "node scripts/render-cloudflare.mjs api",
+    "cf:render:console": "node scripts/render-cloudflare.mjs console",
+    "cf:deploy:api": "node scripts/deploy-cloudflare.mjs api",
+    "cf:deploy:console": "node scripts/deploy-cloudflare.mjs console",
+    "build:console:worker": "node scripts/wrangler.mjs deploy --config console/wrangler.jsonc --dry-run --outdir ../dist/console"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.3.7",
@@ -58,6 +63,7 @@
     "@radix-ui/react-tooltip": "^1.3.0",
     "@tanstack/react-table": "8.21.3",
     "@tanstack/react-virtual": "^3.14.14",
+    "jose": "^6.2.12",
     "lucide-react": "^1.54.0",
     "mapbox-gl": "^3.32.0",
     "react": "^19.3.0",

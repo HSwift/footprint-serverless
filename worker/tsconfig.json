@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": ["node", "@cloudflare/vitest-plugin/types"]
   },
-  "include": ["worker-configuration.d.ts", "api/src/**/*.ts", "api/test/**/*.ts", "vitest.config.mts"]
+  "include": ["worker-configuration.d.ts", "api/src/**/*.ts", "api/test/**/*.ts", "console/worker.ts", "vitest.config.mts"]
 }
