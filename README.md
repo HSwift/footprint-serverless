@@ -363,10 +363,12 @@ pnpm --dir worker run wrangler secret put INGEST_TOKEN
 | Worker 名称 | `footprint-serverless-api` | `footprint-serverless-console` |
 | Build command | `pnpm run cf:render:api && pnpm run typecheck` | `pnpm run cf:render:console && pnpm run typecheck && pnpm run build:console` |
 | Deploy command | `pnpm run cf:deploy:api` | `pnpm run cf:deploy:console` |
-| 必需 Build Variable | `D1_DATABASE_ID` | 无，Access 及地图配置也可直接在 Worker 运行时设置 |
-| 可选 Build Variables | `D1_DATABASE_NAME`、`API_WORKER_NAME` | `API_WORKER_NAME`、`CONSOLE_WORKER_NAME`、`ACCESS_TEAM_DOMAIN`、`ACCESS_AUD`、`MAPBOX_PUBLIC_TOKEN`、`MAPBOX_STYLE` |
+| 必需 Build Variable | 无，复用 API Worker 已有的 `DB` 绑定 | 无，Access 及地图配置也可直接在 Worker 运行时设置 |
+| 可选 Build Variables | `API_WORKER_NAME`；首次部署尚无绑定时可提供 `D1_DATABASE_ID`、`D1_DATABASE_NAME` | `API_WORKER_NAME`、`CONSOLE_WORKER_NAME`、`ACCESS_TEAM_DOMAIN`、`ACCESS_AUD`、`MAPBOX_PUBLIC_TOKEN`、`MAPBOX_STYLE` |
 
 先部署 API，再部署 Console。API Builder 应用 D1 迁移并部署 API；Console Builder 只发布前端静态资源、Console Worker 和 Service Binding，不迁移数据库、不部署 API。自定义 Worker 名称时，两个 Builder 的 `API_WORKER_NAME` 必须一致。
+
+API Worker 的 **Bindings** 中将现有 D1 数据库绑定为 `DB` 即可，不需要在 Builder 重复填写数据库 ID。部署脚本通过 Wrangler 的 `deployments status --json` 和 `versions view --json` 读取当前生产版本的 `DB`，只在临时配置中填入实际 ID，让迁移和发布使用同一个数据库。缺少绑定或正在承接流量的版本绑定了不同数据库时，部署停止，不自动创建或改接数据库。首次部署可以按上面的本地部署步骤建立绑定，也可临时提供 `D1_DATABASE_ID`，绑定建立后移除该 Build Variable。
 
 构建脚本从通用模板生成临时 `wrangler.generated.jsonc`，部署后清理，账号资源信息不进入 Git。运行时 Secret 在后续发布中保留。两个 Worker 都需要相同的 `INGEST_TOKEN`，通过各自 Worker 的 **Settings → Variables and Secrets** 设置；首次引导也可在两个 Builder 中临时提供相同的 Secret `RUNTIME_INGEST_TOKEN`，初次发布成功后移除该 Build Secret。
 

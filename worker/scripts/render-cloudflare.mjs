@@ -13,9 +13,9 @@ export function renderConfig(target, template, variables) {
   }
   if (target === "api") {
     const id = variables.D1_DATABASE_ID?.trim();
-    if (!id || !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(id)) throw new Error("Set D1_DATABASE_ID in the API Builder");
+    if (id && !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(id)) throw new Error("D1_DATABASE_ID must be a database UUID");
     const binding = config.d1_databases.find(database => database.binding === "DB");
-    binding.database_id = id;
+    if (id) binding.database_id = id;
     if (variables.D1_DATABASE_NAME?.trim()) binding.database_name = variables.D1_DATABASE_NAME.trim();
   } else {
     config.services.find(service => service.binding === "API").service = variables.API_WORKER_NAME?.trim() || "footprint-serverless-api";
