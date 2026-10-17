@@ -1,5 +1,9 @@
 # Footprint Serverless
 
+![Console 预览：虚构的冰岛环岛轨迹](docs/assets/console-preview.png)
+
+*预览使用独立生成的虚构轨迹数据。*
+
 基于 Cloudflare Workers 和 D1 的个人足迹记录与可视化应用，包含位置上报 API 和地图控制台，支持自行部署。
 
 ## 功能
@@ -124,5 +128,3 @@ docs/                API、部署与算法文档
 - [轨迹偏离点检测](docs/trajectory-outliers.md)：算法依据、实时窗口、离线分析与 D1 读写预算。
 
 轨迹分析只保存独立标记，不修改原始坐标。仓库提供通用配置模板；实际部署信息、凭据和轨迹数据由部署者自行管理。
-
-维护者：[HSwift](https://github.com/HSwift)。
